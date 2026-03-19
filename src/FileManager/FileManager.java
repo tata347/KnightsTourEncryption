@@ -66,7 +66,73 @@ public class FileManager {
             e.printStackTrace();
         }
     }
+    /**
+     * Saves a salt entry and the original file extension for a specific file into the metadata file.
+     * Format: filename:saltHex
+     * Appends a new line, or updates existing entry if filename already exists.
+     */
+    public boolean saveMD(String fileName, String saltHex, String originalExtension) {
+        Path mdPath = basePath.resolve("md");
+        try {
+            List<String> lines = new ArrayList<>();
+            if (Files.exists(mdPath)) {
+                lines = new ArrayList<>(Files.readAllLines(mdPath, StandardCharsets.UTF_8));
+            }
 
+            String entry = fileName + ":" + saltHex + ":" + originalExtension;
+
+            boolean found = false;
+            for (int i = 0; i < lines.size(); i++) {
+                if (lines.get(i).startsWith(fileName + ":")) {
+                    lines.set(i, entry);
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) lines.add(entry);
+
+            Files.write(mdPath, lines, StandardCharsets.UTF_8);
+            return true;
+
+        } catch (IOException e) {
+            System.err.println("Failed to save salt for: " + fileName);
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    public String readSalt(String fileName) {
+        Path mdPath = basePath.resolve("md");
+        if (!Files.exists(mdPath)) return null;
+        try {
+            List<String> lines = Files.readAllLines(mdPath, StandardCharsets.UTF_8);
+            for (String line : lines) {
+                if (line.startsWith(fileName + ":")) {
+                    return line.split(":", 3)[1]; // just the salt
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    public String readOriginalExtension(String fileName) {
+        Path mdPath = basePath.resolve("md");
+        if (!Files.exists(mdPath)) return "";
+        try {
+            List<String> lines = Files.readAllLines(mdPath, StandardCharsets.UTF_8);
+            for (String line : lines) {
+                if (line.startsWith(fileName + ":")) {
+                    String[] parts = line.split(":", 3);
+                    return parts.length == 3 ? parts[2] : ""; // the extension
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return "";
+    }
     // ============================================================
     // GETTERS & SETTERS
     // ============================================================

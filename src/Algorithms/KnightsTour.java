@@ -33,13 +33,13 @@ public class KnightsTour {
 
     }
 
-    public point[] knightsTourPath(int startRow, int startCol, int size) {
+    public static point[] knightsTourPath(int startRow, int startCol, int size) {
         int[][] board = knightsTourWarnsdroff(startRow, startCol, size);
 
         return extractPath(board, size);
     }
 
-    public int[][] knightsTourBacktracking(int rowStart, int colStart, int size) {
+    public static int[][] knightsTourBacktracking(int rowStart, int colStart, int size) {
         int[][] board = new int[size][size];
         board[rowStart][colStart] = 1;
 
@@ -49,7 +49,7 @@ public class KnightsTour {
         return board;
     }
 
-    private boolean knightsTourBacktrackingRecursion(int[][] board, int row, int col, int move, int size) {
+    private static boolean knightsTourBacktrackingRecursion(int[][] board, int row, int col, int move, int size) {
         if (move == size * size + 1) return true;
 
         for (int i = 0; i < 8; i++) {
@@ -71,7 +71,7 @@ public class KnightsTour {
     }
 
 
-    public int[][] knightsTourWarnsdroff(int rowStart, int colStart, int size) {
+    public static int[][] knightsTourWarnsdroff(int rowStart, int colStart, int size) {
         int[][] board = new int[size][size];
 
 
@@ -81,19 +81,20 @@ public class KnightsTour {
         for (int row = 0; row < size; row++) {
             for (int col = 0; col < size; col++) {
                 // skip start
-                if (row == rowStart && col == colStart) continue;
+                if (!(row == rowStart && col == colStart)) {
 
-                int counter = 0;
+                    int counter = 0;
 
-                for (int i = 0; i < 8; i++) {
-                    int nextRow = row + rowMoves[i];
-                    int nextCol = col + colMoves[i];
-                    if (isValid(nextRow, nextCol, board, size)) {
-                        counter++;
+                    for (int i = 0; i < 8; i++) {
+                        int nextRow = row + rowMoves[i];
+                        int nextCol = col + colMoves[i];
+                        if (isValid(nextRow, nextCol, board, size)) {
+                            counter++;
+                        }
                     }
+                    //minus counter, degrees of entry are in negetive so they are not confused with moves
+                    board[row][col] = -counter;
                 }
-                //minus counter, degrees of entry are in negetive so they are not confused with moves
-                board[row][col] = -counter;
             }
         }
 
@@ -103,7 +104,7 @@ public class KnightsTour {
         return board;
     }
 
-    private boolean knightsTourWarnsdorffRecursion(int[][] board, int row, int col, int move, int size) {
+    private static boolean knightsTourWarnsdorffRecursion(int[][] board, int row, int col, int move, int size) {
         if (move == size * size + 1) return true;
 
         int[] sortedMoves = getSortedMoves(board, row, col, size);
@@ -129,7 +130,7 @@ public class KnightsTour {
     }
 
     //O(1)
-    private int countOnwardMoves(int[][] board, int row, int col, int size) {
+    private static int countOnwardMoves(int[][] board, int row, int col, int size) {
         int count = 0;
         for (int i = 0; i < 8; i++) {
             int nextRow = row + rowMoves[i];
@@ -142,7 +143,7 @@ public class KnightsTour {
     }
 
     //O(1)
-    private int[] getSortedMoves(int[][] board, int row, int col, int size) {
+    private static int[] getSortedMoves(int[][] board, int row, int col, int size) {
         int[] sortedMoves = new int[8];
         int[] moveCounts = new int[8];
         int validCount = 0;
@@ -181,7 +182,7 @@ public class KnightsTour {
         return sortedMoves;
     }
 
-    private void updateNeighbors(int[][] board ,int row ,int col, int size, int amount){
+    private static void updateNeighbors(int[][] board ,int row ,int col, int size, int amount){
         for  (int i = 0; i < 8; i++) {
             int nextRow = row + rowMoves[i];
             int nextCol = col + colMoves[i];
@@ -192,14 +193,14 @@ public class KnightsTour {
     }
 
 
-    private boolean isValid(int row, int col, int[][] board, int size) {
+    private static boolean isValid(int row, int col, int[][] board, int size) {
         return row >= 0 && row < size
                 && col >= 0 && col < size
                 && board[row][col] <= 0;
     }
 
 
-    public point[] extractPath(int[][] board, int size) {
+    public static point[] extractPath(int[][] board, int size) {
         point[] path = new point[size * size];
         for (int row = 0; row < size; row++) {
             for (int col = 0; col < size; col++) {
@@ -209,7 +210,7 @@ public class KnightsTour {
         return path;
     }
 
-    private void printPath(int[][] board, int size){
+    private static void printPath(int[][] board, int size){
         point[] path = extractPath(board, size);
         for (int i = 0; i < path.length; i++) {
             System.out.println(path[i].col + " " + path[i].row);
