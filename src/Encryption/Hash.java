@@ -37,7 +37,36 @@ public class Hash {
 
         return pack(state);
     }
+    public static int hash(int a, int b) {
+        int[] state = IV.clone();
 
+        // Pack the two ints into an 8-byte input
+        byte[] input = new byte[8];
+        input[0] = (byte) (a >>> 24);
+        input[1] = (byte) (a >>> 16);
+        input[2] = (byte) (a >>> 8);
+        input[3] = (byte)  a;
+        input[4] = (byte) (b >>> 24);
+        input[5] = (byte) (b >>> 16);
+        input[6] = (byte) (b >>> 8);
+        input[7] = (byte)  b;
+
+        // Use existing pad + compress pipeline
+        Hash h = new Hash();
+        byte[] padded = h.pad(input);
+        for (int i = 0; i < padded.length; i += BLOCK_SIZE) {
+            byte[] block = new byte[BLOCK_SIZE];
+            System.arraycopy(padded, i, block, 0, BLOCK_SIZE);
+            state = h.compress(state, block);
+        }
+
+        // Fold the 8 state ints down into 1 via XOR
+        int result = 0;
+        for (int s : state) {
+            result ^= s;
+        }
+        return result;
+    }
     //turn state into 32 byte hash
     private byte[] pack(int[] state) {
         byte[] digest = new byte[32];

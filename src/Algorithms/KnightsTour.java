@@ -1,7 +1,5 @@
 package Algorithms;
-import classes.point;
-
-import java.util.ArrayList;
+import classes.Point;
 
 public class KnightsTour {
     private static final int[] rowMoves = {-2, -2, -1, -1,  1,  1,  2,  2};
@@ -33,7 +31,7 @@ public class KnightsTour {
 
     }
 
-    public static point[] knightsTourPath(int startRow, int startCol, int size) {
+    public static Point[] knightsTourPath(int startRow, int startCol, int size) {
         int[][] board = knightsTourWarnsdroff(startRow, startCol, size);
 
         return extractPath(board, size);
@@ -200,18 +198,18 @@ public class KnightsTour {
     }
 
 
-    public static point[] extractPath(int[][] board, int size) {
-        point[] path = new point[size * size];
+    public static Point[] extractPath(int[][] board, int size) {
+        Point[] path = new Point[size * size];
         for (int row = 0; row < size; row++) {
             for (int col = 0; col < size; col++) {
-                path[board[row][col] - 1] = new point(row, col);
+                path[board[row][col] - 1] = new Point(row, col);
             }
         }
         return path;
     }
 
     private static void printPath(int[][] board, int size){
-        point[] path = extractPath(board, size);
+        Point[] path = extractPath(board, size);
         for (int i = 0; i < path.length; i++) {
             System.out.println(path[i].col + " " + path[i].row);
         }
