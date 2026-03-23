@@ -1,5 +1,7 @@
 package Encryption;
 
+import ECC.ECPoint;
+
 import java.security.SecureRandom;
 
 public class KDF {
@@ -15,6 +17,15 @@ public class KDF {
             this.salt = salt;
         }
     }
+    public KDFResult computeKDF(ECPoint point){
+        byte[] salt = new byte[16];
+        new SecureRandom().nextBytes(salt);
+
+        byte[] PRK  = h.hash(concatenate(salt, point.getX().toByteArray()));
+        byte[] hash = expand(PRK, 1000);
+        return new KDFResult(hash, salt);
+
+    }
 
     // Hash a new password — generates fresh salt
     public KDFResult computeKDF(String password) {
@@ -22,7 +33,7 @@ public class KDF {
         new SecureRandom().nextBytes(salt);
 
         byte[] PRK  = h.hash(concatenate(salt, password.getBytes()));
-        byte[] hash = expand(PRK, 10000);
+        byte[] hash = expand(PRK, 1000);
 
         return new KDFResult(hash, salt);
     }
@@ -30,10 +41,16 @@ public class KDF {
     // Recompute hash using a stored salt
     public byte[] recomputeKDF(String password, byte[] salt) {
         byte[] PRK = h.hash(concatenate(salt, password.getBytes()));
-        return expand(PRK, 10000);
+        return expand(PRK, 1000);
     }
 
-    // Verify password against stored hash and salt
+    public byte[] recomputeKDF(ECPoint point, byte[] salt) {
+        byte[] PRK  = h.hash(concatenate(salt, point.getX().toByteArray()));
+        return expand(PRK, 1000);
+    }
+
+
+    // Verify password against hash and salt
     public boolean verify(String password, byte[] storedHash, byte[] storedSalt) {
         byte[] recomputed = recomputeKDF(password, storedSalt);
         return constantTimeEquals(recomputed, storedHash);
@@ -72,7 +89,7 @@ public class KDF {
     }
 
     // test
-    public static void main(String[] args) {
+    private static void main(String[] args) {
         KDF kdf = new KDF();
 
         KDFResult result = kdf.computeKDF("mypassword");

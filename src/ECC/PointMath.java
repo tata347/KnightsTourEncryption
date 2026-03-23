@@ -2,7 +2,7 @@ package ECC;
 
 import java.math.BigInteger;
 
-public class PointMath {
+class PointMath {
 
     private static BigInteger slope(ECPoint p1, ECPoint p2) {
         BigInteger x1 = p1.getX(),  y1 = p1.getY();
@@ -38,9 +38,16 @@ public class PointMath {
                 .mod(Curve.P);
     }
 
-    public static ECPoint pointAdd(ECPoint p1, ECPoint p2) {
+    private static ECPoint pointAdd(ECPoint p1, ECPoint p2) {
+        if (p1.isInfinity()) return p2;
+        if (p2.isInfinity()) return p1;
+
         BigInteger x1 = p1.getX(), y1 = p1.getY();
         BigInteger x2 = p2.getX(), y2 = p2.getY();
+
+        if (x1.equals(x2) && y1.equals(y2.negate().mod(Curve.P))) {
+            return ECPoint.INFINITY;
+        }
 
         // get slope
         BigInteger slope = slope(p1, p2);
@@ -59,8 +66,17 @@ public class PointMath {
         return new ECPoint(x3, y3);
     }
 
-    public static ECPoint pointDouble(ECPoint p) {
+    private static ECPoint pointDouble(ECPoint p) {
+
+        if(p.isInfinity()){
+            return ECPoint.INFINITY;
+        }
+
         BigInteger x = p.getX(), y = p.getY();
+
+        if(y.equals(BigInteger.ZERO)){
+            return ECPoint.INFINITY;
+        }
 
         //get slope
         BigInteger slope = slope(p);
@@ -77,7 +93,9 @@ public class PointMath {
         return new ECPoint(x3, y3);
     }
 
-    public static ECPoint scalarMultiply(ECPoint p, BigInteger k) {
+    static ECPoint scalarMultiply(ECPoint p, BigInteger k) {
+
+        k = k.mod(Curve.N);
         //like starting a sum at 0, it will double
         ECPoint result  = ECPoint.INFINITY;
         ECPoint current = p;

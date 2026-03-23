@@ -140,6 +140,8 @@ public class VaultDialogController {
 
         dialog.showAndWait().ifPresent(unused -> {
             String password = pf.getText();
+            System.out.println("DEBUG password captured: '" + password + "'");
+            System.out.println("DEBUG unused from dialog: '" + unused + "'");
             if (password.isEmpty()) return;
 
             String fileName = selected.replace("🔒 ", "");

@@ -7,9 +7,9 @@ public class ECPoint {
     private final BigInteger x;
     private final BigInteger y;
 
-    public static final ECPoint INFINITY = new ECPoint(null, null);
+    static final ECPoint INFINITY = new ECPoint(null, null);
 
-    public ECPoint(BigInteger x, BigInteger y) {
+    ECPoint(BigInteger x, BigInteger y) {
         this.x = x;
         this.y = y;
 
@@ -30,7 +30,7 @@ public class ECPoint {
         return y;
     }
 
-    public boolean isInfinity() {
+    boolean isInfinity() {
         return x == null && y == null;
     }
 
@@ -38,5 +38,18 @@ public class ECPoint {
     public String toString() {
         if (isInfinity()) return "Point at Infinity";
         return "ECPoint(" + x.toString(16) + ", " + y.toString(16) + ")";
+    }
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (!(obj instanceof ECPoint other)) return false;
+        if (this.isInfinity()) return other.isInfinity();
+        if (other.isInfinity()) return false;
+        return this.x.equals(other.x) && this.y.equals(other.y);
+    }
+
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(x, y);
     }
 }
