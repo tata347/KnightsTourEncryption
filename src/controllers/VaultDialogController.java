@@ -94,7 +94,7 @@ public class VaultDialogController {
                     Path temp = Paths.get(System.getProperty("java.io.tmpdir")).resolve(encFileName);
                     Files.write(temp, encrypted);
 
-                    // import into vault — returns actual path
+                    // import into vault returns actual path
                     Path result = fileManager.importFileToVault(temp);
                     Files.delete(temp);
 

@@ -1,5 +1,4 @@
 package Algorithms;
-import classes.Point;
 
 public class KnightsTour {
     private static final int[] rowMoves = {-2, -2, -1, -1,  1,  1,  2,  2};

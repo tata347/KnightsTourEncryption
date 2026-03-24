@@ -1,6 +1,6 @@
 package Encryption;
 
-import classes.Point;
+import Algorithms.Point;
 
 public class EncryptionHelpers {
     public static byte encryptByte(byte b, byte[] key, Point p) {
