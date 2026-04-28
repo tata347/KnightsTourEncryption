@@ -2,6 +2,9 @@ package ECC;
 
 import java.math.BigInteger;
 
+/**
+ * this class represents an elliptic curve point, with two BigIntegers
+ * */
 public class ECPoint {
 
     private final BigInteger x;

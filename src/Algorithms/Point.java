@@ -2,6 +2,10 @@ package Algorithms;
 
 import Encryption.Hash;
 
+/**
+ * A simple (row, col) coordinate on a 2D grid.
+ * Used by the Knight's Tour and the encryption layer to address cells.
+ */
 public class Point {
     public int row;
     public int col;
@@ -18,9 +22,9 @@ public class Point {
         return this.col == p.col && this.row == p.row;
     }
 
+    /** Uses the project's custom Hash for consistency with the rest of the codebase. */
     @Override
     public int hashCode() {
         return Hash.hash(col, row);
     }
-
 }

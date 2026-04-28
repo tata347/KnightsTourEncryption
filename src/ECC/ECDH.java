@@ -5,8 +5,23 @@ import Encryption.KDF;
 import java.math.BigInteger;
 import java.security.SecureRandom;
 
+/**
+ * Elliptic Curve Diffie-Hellman key exchange over secp256k1.
+ *
+ * Lets two parties agree on a shared secret over an open channel without
+ * ever transmitting it. Each side generates a private key, derives a public
+ * key from it, and exchanges public keys. Both then compute the same shared
+ * point - one that an eavesdropper watching the public keys can't recover
+ * (this is the elliptic curve discrete log problem, ECDLP).
+ */
 public class ECDH {
 
+    /**
+     * Picks a random 256-bit private key in the valid range [1, N-1].
+     * Uses SecureRandom because predictability here would compromise the
+     * entire key exchange. Loops until it gets a value in range - rejects
+     * 0 and anything >= curve order N.
+     */
     public static BigInteger generatePrivateKey(){
         SecureRandom secureRandom = new SecureRandom();
         BigInteger privateKey;
@@ -17,20 +32,26 @@ public class ECDH {
         return privateKey;
     }
 
+    /** Derives the public key by computing privateKey * G on the curve. */
     public static ECPoint generatePublicKey(BigInteger privateKey){
         return PointMath.scalarMultiply(Curve.G, privateKey);
     }
 
+    /**
+     * Computes the shared secret point: my private key * their public key.
+     * Both sides arrive at the same point because (a*b)*G = (b*a)*G.
+     * The X coordinate of this point is what gets fed into the KDF.
+     */
     public static ECPoint computeSharedSecret(BigInteger myPrivateKey, ECPoint theirPublicKey){
         ECPoint sharedPoint = PointMath.scalarMultiply(theirPublicKey, myPrivateKey);
         return sharedPoint;
     }
 
-
+    // simulates a full Alice-Bob key exchange end to end
     public static void main(String[] args) {
         System.out.println("=== ECDH + KDF Test ===");
 
-        // --- Alice ---
+        // Alice generates her keypair
         BigInteger alicePrivateKey = generatePrivateKey();
         ECPoint alicePublicKey = generatePublicKey(alicePrivateKey);
 
@@ -38,7 +59,7 @@ public class ECDH {
         System.out.println("Private Key: " + alicePrivateKey);
         System.out.println("Public Key:  " + alicePublicKey);
 
-        // --- Bob ---
+        // Bob generates his keypair
         BigInteger bobPrivateKey = generatePrivateKey();
         ECPoint bobPublicKey = generatePublicKey(bobPrivateKey);
 
@@ -46,7 +67,8 @@ public class ECDH {
         System.out.println("Private Key: " + bobPrivateKey);
         System.out.println("Public Key:  " + bobPublicKey);
 
-        // --- Shared Secret ---
+        // each side computes the shared secret using their own private key
+        // and the other's public key - the math guarantees they match
         ECPoint aliceSharedKey = computeSharedSecret(alicePrivateKey, bobPublicKey);
         ECPoint bobSharedKey = computeSharedSecret(bobPrivateKey, alicePublicKey);
 
@@ -57,23 +79,23 @@ public class ECDH {
         boolean sameShared = aliceSharedKey.equals(bobSharedKey);
         System.out.println("\nShared EC Point equal? " + sameShared);
 
-        // --- KDF ---
+        // run the shared point through the KDF to get a usable symmetric key
         KDF kdf = new KDF();
 
-        // Alice generates salt + key
+        // Alice generates a fresh salt and derives her key
         KDF.KDFResult aliceResult = kdf.computeKDF(aliceSharedKey);
 
         System.out.println("\n--- Alice KDF ---");
         System.out.println("Hash: " + bytesToHex(aliceResult.hash));
         System.out.println("Salt: " + bytesToHex(aliceResult.salt));
 
-        // Bob uses Alice's salt
+        // Bob recomputes using Alice's salt - this is what would travel
+        // through the public channel along with the public keys
         byte[] bobResult = kdf.recomputeKDF(bobSharedKey, aliceResult.salt);
 
         System.out.println("\n--- Bob KDF (using Alice's salt) ---");
         System.out.println("Hash: " + bytesToHex(bobResult));
 
-        // Compare final keys
         boolean sameKdf = java.util.Arrays.equals(aliceResult.hash, bobResult);
         System.out.println("\nFinal keys equal? " + sameKdf);
 
@@ -90,6 +112,5 @@ public class ECDH {
             hex.append(String.format("%02x", b));
         }
         return hex.toString();
-
     }
 }

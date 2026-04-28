@@ -1,10 +1,15 @@
 package Encryption;
 
+/**
+ * A custom 256-bit hash function inspired by SHA-2.
+ * Uses Merkle-Damgard construction: pad the input, split into 64-byte blocks,
+ * compress each block into an 8-int state, then pack into 32 bytes.
+ */
 public class Hash {
 
     private static final int BLOCK_SIZE = 64;
 
-    //initial vector
+    // initial vector - fractional parts of square roots of small primes (same trick as SHA-256)
     private static final int[] IV = {
             0x6a09e667, // sqrt2
             0xbb67ae85, // sqrt3
@@ -16,6 +21,7 @@ public class Hash {
             0x5be0cd19  // sqrt19
     };
 
+    /** Converts bytes to a lowercase hex string for printing. */
     public static String stringToHex(byte[] bytes) {
         StringBuilder sb = new StringBuilder();
         for (byte b : bytes) {
@@ -24,23 +30,29 @@ public class Hash {
         return sb.toString();
     }
 
+    /** Hashes any byte array into a 32-byte digest. */
     public byte[] hash(byte[] input){
         int[] state = IV.clone();
         byte[] padded = pad(input);
 
+        // process the padded input one 64-byte block at a time
         for (int i = 0; i < padded.length; i += BLOCK_SIZE) {
             byte[] block = new byte[BLOCK_SIZE];
             System.arraycopy(padded, i, block, 0, BLOCK_SIZE);
             state = compress(state, block);
-
         }
 
         return pack(state);
     }
+
+    /**
+     * Hashes two ints into a single int. Used where a full 32-byte digest
+     * is overkill - typically as a quick mixing function inside other code.
+     */
     public static int hash(int a, int b) {
         int[] state = IV.clone();
 
-        // Pack the two ints into an 8-byte input
+        // pack the two ints into an 8-byte input, big-endian
         byte[] input = new byte[8];
         input[0] = (byte) (a >>> 24);
         input[1] = (byte) (a >>> 16);
@@ -51,7 +63,7 @@ public class Hash {
         input[6] = (byte) (b >>> 8);
         input[7] = (byte)  b;
 
-        // Use existing pad + compress pipeline
+        // reuse the same pad + compress pipeline as the byte-array version
         Hash h = new Hash();
         byte[] padded = h.pad(input);
         for (int i = 0; i < padded.length; i += BLOCK_SIZE) {
@@ -60,14 +72,15 @@ public class Hash {
             state = h.compress(state, block);
         }
 
-        // Fold the 8 state ints down into 1 via XOR
+        // fold the 8 state ints down into 1 via XOR
         int result = 0;
         for (int s : state) {
             result ^= s;
         }
         return result;
     }
-    //turn state into 32 byte hash
+
+    /** Turns the 8-int state into a 32-byte hash, big-endian. */
     private byte[] pack(int[] state) {
         byte[] digest = new byte[32];
         for (int i = 0; i < 8; i++) {
@@ -79,7 +92,11 @@ public class Hash {
         return digest;
     }
 
-    // Append Merkle-Damgard padding to input
+    /**
+     * Applies Merkle-Damgard padding: appends a 0x80 delimiter, zero-pads,
+     * and writes the original bit-length in the last 8 bytes. This makes
+     * the input length a multiple of 64 and prevents length-extension ambiguity.
+     */
     private byte[] pad(byte[] input) {
 
         // Calculate how many bytes are needed to fill the current block,
@@ -119,9 +136,16 @@ public class Hash {
 
         return padded;
     }
+
+    /**
+     * Mixes one 64-byte block into the state.
+     * Runs 64 rounds of XOR + rotate + multiply for diffusion, then adds the
+     * original state back in (Davies-Meyer) so the function is one-way.
+     */
     private int[] compress(int[] state, byte[] block) {
 
-        //transfer bytes to ints, AND with &oxFF signed bit causes issue in negatives
+        // transfer bytes to ints. & 0xFF is critical - bytes are signed in Java,
+        // so without it negative values would sign-extend and corrupt the int
         int[] blockWords = new int[16];
         for (int i = 0; i < 16; i++) {
             int b = i * 4; // byte offset
@@ -131,22 +155,22 @@ public class Hash {
                     |  (block[b+3] & 0xFF);
         }
 
-        //save original state for Davies-Meyer later
+        // save original state for Davies-Meyer feed-forward at the end
         int[] originalState = state.clone();
 
-        //run mixing rounds
-        int prime = 0x9e3779b9;
+        // run mixing rounds
+        int prime = 0x9e3779b9; // golden ratio constant - good for spreading bits
         for(int i = 0; i < 64; i++) {
             state[i % 8] ^= blockWords[i % 16];
-            //rotate each time by 2, 3, 4, 5
+            // rotate each time by 2, 3, 4, 5 to vary how bits move around
             int rotate = (i % 4) + 2;
-            //rotation and multiplication
+            // rotation and multiplication
             state[i % 8] = Integer.rotateLeft(state[i % 8], rotate) * prime;
-            //avalanche
+            // avalanche - feed each word into the next so a tiny change spreads everywhere
             state[(i + 1) % 8] ^= state[i % 8];
-
         }
-        //Davies-Meyer feed-forward
+
+        // Davies-Meyer feed-forward - makes the compression irreversible
         for (int i = 0; i < 8; i++) {
             state[i] += originalState[i];
         }

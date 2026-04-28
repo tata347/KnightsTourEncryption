@@ -8,51 +8,25 @@ import java.util.stream.Stream;
 import java.nio.charset.StandardCharsets;
 
 /**
- * FileManager - A comprehensive CRUD library for file operations
- * Designed for cryptography projects with secure file handling.
- * All files are stored inside a "vault" directory on the user's system.
+ * Handles all file operations for the vault - creating, reading, deleting,
+ * and importing files. Each FileManager instance manages one vault directory.
  */
 public class FileManager {
 
     private Path basePath;
-
-    // ============================================================
-    // DEFAULT VAULT LOCATION
-    // ============================================================
-
-    /**
-     * Default vault folder name, placed in the user's home directory.
-     * e.g. /Users/yourname/MyVault  or  C:\Users\yourname\MyVault
-     */
     private static final String DEFAULT_VAULT_NAME = "MyVault";
 
-    // ============================================================
-    // CONSTRUCTORS & INITIALIZATION
-    // ============================================================
-
-    /**
-     * Creates a FileManager using the default vault location:
-     * {user.home}/MyVault
-     * The vault directory is created automatically if it doesn't exist.
-     */
+    /** Uses the default vault at {user.home}/MyVault. */
     public FileManager() {
-        this(System.getProperty("user.home") + System.getProperty("file.separator") + DEFAULT_VAULT_NAME);
+        this(System.getProperty("user.home") + "\\" + DEFAULT_VAULT_NAME);
     }
 
-    /**
-     * Creates a FileManager with a custom vault/base directory path.
-     * The directory is created automatically if it doesn't exist.
-     *
-     * @param basePath The root directory that acts as the vault
-     */
+    /** Uses a custom vault path. Creates the directory if it doesn't exist. */
     public FileManager(String basePath) {
         this.basePath = Paths.get(basePath);
         ensureDirectoryExists(this.basePath);
     }
 
-    /**
-     * Ensures a directory exists, creates it (and any parents) if it doesn't.
-     */
     private void ensureDirectoryExists(Path path) {
         try {
             if (!Files.exists(path)) {
@@ -66,11 +40,10 @@ public class FileManager {
             e.printStackTrace();
         }
     }
-    /**
-     * Saves a salt entry and the original file extension for a specific file into the metadata file.
-     * Format: filename:saltHex
-     * Appends a new line, or updates existing entry if filename already exists.
-     */
+
+    // metadata (per-file salt + original extension)
+
+    /** Saves or updates the salt and original extension for a file. */
     public boolean saveMD(String fileName, String saltHex, String originalExtension) {
         Path mdPath = basePath.resolve("md");
         try {
@@ -101,6 +74,7 @@ public class FileManager {
         }
     }
 
+    /** Returns the salt for the given file, or null if not found. */
     public String readSalt(String fileName) {
         Path mdPath = basePath.resolve("md");
         if (!Files.exists(mdPath)) return null;
@@ -108,7 +82,7 @@ public class FileManager {
             List<String> lines = Files.readAllLines(mdPath, StandardCharsets.UTF_8);
             for (String line : lines) {
                 if (line.startsWith(fileName + ":")) {
-                    return line.split(":", 3)[1]; // just the salt
+                    return line.split(":", 3)[1];
                 }
             }
         } catch (IOException e) {
@@ -117,6 +91,7 @@ public class FileManager {
         return null;
     }
 
+    /** Returns the original extension for the given file, or empty string if not found. */
     public String readOriginalExtension(String fileName) {
         Path mdPath = basePath.resolve("md");
         if (!Files.exists(mdPath)) return "";
@@ -125,7 +100,7 @@ public class FileManager {
             for (String line : lines) {
                 if (line.startsWith(fileName + ":")) {
                     String[] parts = line.split(":", 3);
-                    return parts.length == 3 ? parts[2] : ""; // the extension
+                    return parts.length == 3 ? parts[2] : "";
                 }
             }
         } catch (IOException e) {
@@ -133,9 +108,8 @@ public class FileManager {
         }
         return "";
     }
-    // ============================================================
-    // GETTERS & SETTERS
-    // ============================================================
+
+    // getters & setters
 
     public Path getBasePath() {
         return basePath;
@@ -146,20 +120,13 @@ public class FileManager {
         ensureDirectoryExists(basePath);
     }
 
-    /**
-     * Returns the absolute path of the vault directory as a String.
-     */
     public String getVaultPath() {
         return basePath.toAbsolutePath().toString();
     }
 
-    // ============================================================
-    // CREATE OPERATIONS
-    // ============================================================
+    // create
 
-    /**
-     * Creates a new file with text content inside the vault.
-     */
+    /** Writes text content to a new file in the vault. */
     public boolean createFile(String fileName, String content) {
         Path filePath = basePath.resolve(fileName);
         try {
@@ -173,10 +140,7 @@ public class FileManager {
         }
     }
 
-    /**
-     * Creates a new file with binary content inside the vault.
-     * Useful for storing encrypted byte data.
-     */
+    /** Writes raw bytes to a new file - used for encrypted data. */
     public boolean createFile(String fileName, byte[] content) {
         Path filePath = basePath.resolve(fileName);
         try {
@@ -191,11 +155,9 @@ public class FileManager {
     }
 
     /**
-     * Copies an external file (from anywhere on disk) into the vault.
-     * This is the primary method used when a user drops a file onto the UI.
-     *
-     * @param sourcePath Full path of the file to import
-     * @return The path of the file inside the vault, or null if failed
+     * Copies a file from anywhere on disk into the vault.
+     * If a file with the same name exists, adds (1), (2), etc.
+     * Returns the path inside the vault, or null on failure.
      */
     public Path importFileToVault(Path sourcePath) {
         if (!Files.exists(sourcePath) || !Files.isRegularFile(sourcePath)) {
@@ -204,10 +166,7 @@ public class FileManager {
         }
 
         String fileName = sourcePath.getFileName().toString();
-        Path destination = basePath.resolve(fileName);
-
-        // If a file with the same name already exists, add a numeric suffix
-        destination = resolveNameConflict(destination);
+        Path destination = resolveNameConflict(basePath.resolve(fileName));
 
         try {
             Files.copy(sourcePath, destination, StandardCopyOption.REPLACE_EXISTING);
@@ -220,9 +179,6 @@ public class FileManager {
         }
     }
 
-    /**
-     * If the target path already exists, appends (1), (2), … until a free name is found.
-     */
     private Path resolveNameConflict(Path target) {
         if (!Files.exists(target)) return target;
 
@@ -240,37 +196,9 @@ public class FileManager {
         return candidate;
     }
 
-    /**
-     * Creates a new sub-directory inside the vault.
-     */
-    public boolean createDirectory(String dirName) {
-        Path dirPath = basePath.resolve(dirName);
-        try {
-            Files.createDirectories(dirPath);
-            System.out.println("Directory created in vault: " + dirPath);
-            return true;
-        } catch (IOException e) {
-            System.err.println("Failed to create directory: " + dirPath);
-            e.printStackTrace();
-            return false;
-        }
-    }
+    // read
 
-    // ============================================================
-    // READ OPERATIONS
-    // ============================================================
-
-    public String readFileAsText(String fileName) {
-        Path filePath = basePath.resolve(fileName);
-        try {
-            return Files.readString(filePath, StandardCharsets.UTF_8);
-        } catch (IOException e) {
-            System.err.println("Failed to read file: " + filePath);
-            e.printStackTrace();
-            return null;
-        }
-    }
-
+    /** Reads the file's raw bytes. Returns null on failure. */
     public byte[] readFileAsBytes(String fileName) {
         Path filePath = basePath.resolve(fileName);
         try {
@@ -282,17 +210,7 @@ public class FileManager {
         }
     }
 
-    public List<String> readFileAsLines(String fileName) {
-        Path filePath = basePath.resolve(fileName);
-        try {
-            return Files.readAllLines(filePath, StandardCharsets.UTF_8);
-        } catch (IOException e) {
-            System.err.println("Failed to read file lines: " + filePath);
-            e.printStackTrace();
-            return new ArrayList<>();
-        }
-    }
-
+    /** Lists everything (files and subfolders) directly inside the given folder. */
     public List<Path> getItemsInFolder(Path folder) {
         List<Path> items = new ArrayList<>();
         if (Files.isDirectory(folder)) {
@@ -306,10 +224,7 @@ public class FileManager {
         return items;
     }
 
-    public List<Path> listAllItems() {
-        return getItemsInFolder(basePath);
-    }
-
+    /** Lists only the files (no subfolders) at the top level of the vault. */
     public List<Path> listFiles() {
         List<Path> files = new ArrayList<>();
         try (Stream<Path> stream = Files.list(basePath)) {
@@ -321,137 +236,9 @@ public class FileManager {
         return files;
     }
 
-    public List<Path> listDirectories() {
-        List<Path> dirs = new ArrayList<>();
-        try (Stream<Path> stream = Files.list(basePath)) {
-            stream.filter(Files::isDirectory).forEach(dirs::add);
-        } catch (IOException e) {
-            System.err.println("Failed to list directories");
-            e.printStackTrace();
-        }
-        return dirs;
-    }
+    // delete
 
-    public boolean fileExists(String fileName) {
-        Path filePath = basePath.resolve(fileName);
-        return Files.exists(filePath) && Files.isRegularFile(filePath);
-    }
-
-    public long getFileSize(String fileName) {
-        Path filePath = basePath.resolve(fileName);
-        try {
-            return Files.size(filePath);
-        } catch (IOException e) {
-            System.err.println("Failed to get file size: " + filePath);
-            e.printStackTrace();
-            return -1;
-        }
-    }
-
-    // ============================================================
-    // UPDATE OPERATIONS
-    // ============================================================
-
-    public boolean updateFile(String fileName, String content) {
-        Path filePath = basePath.resolve(fileName);
-        if (!Files.exists(filePath)) {
-            System.err.println("File does not exist: " + filePath);
-            return false;
-        }
-        try {
-            Files.writeString(filePath, content, StandardCharsets.UTF_8);
-            System.out.println("File updated: " + filePath);
-            return true;
-        } catch (IOException e) {
-            System.err.println("Failed to update file: " + filePath);
-            e.printStackTrace();
-            return false;
-        }
-    }
-
-    public boolean updateFile(String fileName, byte[] content) {
-        Path filePath = basePath.resolve(fileName);
-        if (!Files.exists(filePath)) {
-            System.err.println("File does not exist: " + filePath);
-            return false;
-        }
-        try {
-            Files.write(filePath, content);
-            System.out.println("Binary file updated: " + filePath);
-            return true;
-        } catch (IOException e) {
-            System.err.println("Failed to update binary file: " + filePath);
-            e.printStackTrace();
-            return false;
-        }
-    }
-
-    public boolean appendToFile(String fileName, String content) {
-        Path filePath = basePath.resolve(fileName);
-        try {
-            Files.writeString(filePath, content, StandardCharsets.UTF_8,
-                    StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-            System.out.println("Content appended to: " + filePath);
-            return true;
-        } catch (IOException e) {
-            System.err.println("Failed to append to file: " + filePath);
-            e.printStackTrace();
-            return false;
-        }
-    }
-
-    public boolean renameFile(String oldName, String newName) {
-        Path oldPath = basePath.resolve(oldName);
-        Path newPath = basePath.resolve(newName);
-        try {
-            Files.move(oldPath, newPath, StandardCopyOption.ATOMIC_MOVE);
-            System.out.println("Renamed: " + oldName + " -> " + newName);
-            return true;
-        } catch (IOException e) {
-            System.err.println("Failed to rename: " + oldName);
-            e.printStackTrace();
-            return false;
-        }
-    }
-
-    /**
-     * Exports a file from the vault to an external destination path.
-     *
-     * @param fileName        Name of the file inside the vault
-     * @param destinationPath Full path where the file should be exported
-     * @return true if successful, false otherwise
-     */
-    public boolean exportFile(String fileName, Path destinationPath) {
-        Path source = basePath.resolve(fileName);
-        try {
-            Files.copy(source, destinationPath, StandardCopyOption.REPLACE_EXISTING);
-            System.out.println("Exported: " + fileName + " -> " + destinationPath);
-            return true;
-        } catch (IOException e) {
-            System.err.println("Failed to export file: " + fileName);
-            e.printStackTrace();
-            return false;
-        }
-    }
-
-    public boolean copyFile(String fileName, String destinationName) {
-        Path source = basePath.resolve(fileName);
-        Path destination = basePath.resolve(destinationName);
-        try {
-            Files.copy(source, destination, StandardCopyOption.REPLACE_EXISTING);
-            System.out.println("Copied: " + fileName + " -> " + destinationName);
-            return true;
-        } catch (IOException e) {
-            System.err.println("Failed to copy file: " + fileName);
-            e.printStackTrace();
-            return false;
-        }
-    }
-
-    // ============================================================
-    // DELETE OPERATIONS
-    // ============================================================
-
+    /** Deletes a file from the vault. Returns true if it was actually deleted. */
     public boolean deleteFile(String fileName) {
         Path filePath = basePath.resolve(fileName);
         try {
@@ -467,103 +254,5 @@ public class FileManager {
             e.printStackTrace();
             return false;
         }
-    }
-
-    public boolean deleteDirectory(String dirName) {
-        Path dirPath = basePath.resolve(dirName);
-        try {
-            boolean deleted = Files.deleteIfExists(dirPath);
-            if (deleted) System.out.println("Directory deleted: " + dirPath);
-            else         System.out.println("Directory not found: " + dirPath);
-            return deleted;
-        } catch (IOException e) {
-            System.err.println("Failed to delete directory (may not be empty): " + dirPath);
-            e.printStackTrace();
-            return false;
-        }
-    }
-
-    public boolean deleteDirectoryRecursively(String dirName) {
-        Path dirPath = basePath.resolve(dirName);
-        try {
-            if (Files.exists(dirPath)) {
-                deleteRecursive(dirPath);
-                System.out.println("Directory recursively deleted: " + dirPath);
-                return true;
-            } else {
-                System.out.println("Directory not found: " + dirPath);
-                return false;
-            }
-        } catch (IOException e) {
-            System.err.println("Failed to recursively delete directory: " + dirPath);
-            e.printStackTrace();
-            return false;
-        }
-    }
-
-    private void deleteRecursive(Path path) throws IOException {
-        if (Files.isDirectory(path)) {
-            try (Stream<Path> entries = Files.list(path)) {
-                entries.forEach(entry -> {
-                    try { deleteRecursive(entry); }
-                    catch (IOException e) { e.printStackTrace(); }
-                });
-            }
-        }
-        Files.delete(path);
-    }
-
-    // ============================================================
-    // UTILITY / CRYPTOGRAPHY HELPERS
-    // ============================================================
-
-    /**
-     * Securely overwrites a file with random data before deletion
-     * to help prevent data recovery.
-     *
-     * @param fileName File to securely delete
-     * @param passes   Number of overwrite passes (recommended: 3–7)
-     */
-    public boolean secureDelete(String fileName, int passes) {
-        Path filePath = basePath.resolve(fileName);
-        try {
-            long fileSize = Files.size(filePath);
-            byte[] randomData = new byte[(int) fileSize];
-            java.security.SecureRandom rng = new java.security.SecureRandom();
-
-            for (int i = 0; i < passes; i++) {
-                rng.nextBytes(randomData);
-                Files.write(filePath, randomData);
-            }
-
-            Files.delete(filePath);
-            System.out.println("File securely deleted: " + filePath);
-            return true;
-        } catch (IOException e) {
-            System.err.println("Failed to securely delete file: " + filePath);
-            e.printStackTrace();
-            return false;
-        }
-    }
-
-    /**
-     * Creates a .backup copy of a file inside the vault.
-     */
-    public Path createBackup(String fileName) {
-        Path original = basePath.resolve(fileName);
-        Path backup   = basePath.resolve(fileName + ".backup");
-        try {
-            Files.copy(original, backup, StandardCopyOption.REPLACE_EXISTING);
-            System.out.println("Backup created: " + backup);
-            return backup;
-        } catch (IOException e) {
-            System.err.println("Failed to create backup: " + fileName);
-            e.printStackTrace();
-            return null;
-        }
-    }
-
-    public Path getAbsolutePath(String fileName) {
-        return basePath.resolve(fileName).toAbsolutePath();
     }
 }
